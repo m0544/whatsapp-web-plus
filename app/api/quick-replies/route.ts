@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     const created = await prisma.quickReply.create({
       data: { shortcut: shortcut.trim(), content: content.trim() },
     });
-    return NextResponse.json(created);
+    return NextResponse.json(created, { status: 201 });
   } catch (e) {
     console.error(e);
     return NextResponse.json(

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   Card,
   CardContent,
@@ -74,7 +75,7 @@ export default function LoginPage() {
           </CardHeader>
           <CardContent>
             <Button asChild className="w-full">
-              <a href="/">לעמוד הבית</a>
+              <Link href="/">לעמוד הבית</Link>
             </Button>
           </CardContent>
         </Card>

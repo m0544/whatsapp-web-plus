@@ -96,3 +96,36 @@ export async function sendMessage(
     return { success: false, error: message };
   }
 }
+
+/**
+ * Sends a quick-reply template to a chat by reply ID.
+ * Fetches the template content from the DB and sends it via WhatsApp.
+ * @param chatId - WhatsApp chat ID (e.g. "972501234567@c.us")
+ * @param replyId - QuickReply record id
+ */
+export async function sendQuickReply(
+  chatId: string,
+  replyId: string
+): Promise<{ success: boolean; error?: string }> {
+  const { getConnectionStatus } = await import("./store");
+  if (getConnectionStatus() !== "ready") {
+    return { success: false, error: "WhatsApp לא מחובר" };
+  }
+  try {
+    const { prisma } = await import("@/lib/db");
+    const template = await prisma.quickReply.findUnique({
+      where: { id: replyId },
+    });
+    if (!template) {
+      return { success: false, error: "תבנית לא נמצאה" };
+    }
+    const client = await getClient();
+    const normalized =
+      chatId.includes("@c.us") ? chatId : `${chatId.replace(/\D/g, "")}@c.us`;
+    await client.sendMessage(normalized, template.content);
+    return { success: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "שגיאה בשליחה";
+    return { success: false, error: message };
+  }
+}
