@@ -1,36 +1,78 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# WhatsApp Web Plus
 
-## Getting Started
+אפליקציית Next.js לחיבור ל-WhatsApp עם תשובות מהירות (תבניות) ושליחת הודעות מתוזמנות (בפיתוח).
 
-First, run the development server:
+## טכנולוגיות
+
+- **Next.js 16** (App Router) + TypeScript  
+- **whatsapp-web.js** + Puppeteer – חיבור ל-WhatsApp  
+- **Prisma** + **SQLite** – תבניות ומסד נתונים  
+- **Tailwind CSS** + **Shadcn/ui** – ממשק  
+
+## התקנה והרצה
 
 ```bash
+npm install
+cp .env.example .env   # או צור .env עם DATABASE_URL
+npx prisma generate
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+פתח [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## משתני סביבה
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+צור קובץ `.env` (או `.env.local`) עם:
 
-## Learn More
+```
+DATABASE_URL="file:./prisma/dev.db"
+```
 
-To learn more about Next.js, take a look at the following resources:
+## תכונות
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **התחברות** – סריקת QR וחיבור ל-WhatsApp  
+- **תשובות מהירות** – ניהול תבניות הודעה ושליחה בלחיצה  
+- **שלח מהיר** – הזנת מספר, בחירת תבנית, שליחה  
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## העלאה לפרויקט Git חדש (GitHub / GitLab)
 
-## Deploy on Vercel
+הפרויקט כבר מאותחל עם Git ו-commit ראשון. כדי להעלות לריפו חדש:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 1. צור ריפו חדש ב-GitHub (או GitLab)
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- ב-GitHub: **New repository** → שם (למשל `whatsapp-web-plus`) → **לא** לסמן "Add a README"  
+- העתק את כתובת ה-URL (HTTPS או SSH), למשל:  
+  `https://github.com/YOUR_USER/whatsapp-web-plus.git`
+
+### 2. חבר את הריפו המקומי לריפו המרוחק והעלה
+
+בטרמינל, מתוך תיקיית הפרויקט:
+
+```powershell
+cd C:\Users\adm_user\whatsapp-web-plus
+
+# הוסף את הריפו המרוחק (החלף ב-URL שלך)
+git remote add origin https://github.com/YOUR_USER/whatsapp-web-plus.git
+
+# אופציונלי: שנה את שם הענף ל-main אם הריפו החדש משתמש ב-main
+git branch -M main
+
+# העלה את כל הקומיטים
+git push -u origin main
+```
+
+אם הענף הנוכחי אצלך הוא `mastar` ואתה רוצה להעלות אותו כ-main:
+
+```powershell
+git branch -M main
+git remote add origin https://github.com/YOUR_USER/whatsapp-web-plus.git
+git push -u origin main
+```
+
+אם כבר הוגדר `origin` (למשל מפרויקט אחר), תחילה הסר והגדר מחדש:
+
+```powershell
+git remote remove origin
+git remote add origin https://github.com/YOUR_USER/whatsapp-web-plus.git
+git push -u origin main
+```
