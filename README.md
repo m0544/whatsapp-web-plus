@@ -2,7 +2,62 @@
 
 אפליקציית Next.js לחיבור ל-WhatsApp עם תשובות מהירות (תבניות) ושליחת הודעות מתוזמנות (בפיתוח).
 
-## טכנולוגיות
+---
+
+## Monorepo (new stack)
+
+הפרויקט כולל מונורפו: **client** (Vite + React Router 7) ו-**server** (Nest + Fastify) באותו ריפו.
+
+### מבנה
+
+| path | תיאור |
+|------|--------|
+| `packages/contracts` | ts-rest contract + Zod schemas (types/DTOs משותפים) |
+| `packages/db` | Prisma (SQLite) + better-sqlite3 |
+| `apps/api` | Nest + Fastify, SWC – API (quick-replies, send, whatsapp) |
+| `apps/web` | Vite + React 19 + React Router 7 + TanStack Query |
+
+### Build
+
+```bash
+npm install
+npm run build
+```
+
+סדר הבנייה: contracts → db → api → web.
+
+אם ב-Windows מופיעה שגיאת `EPERM` או `ENOTEMPTY` בבניית ה-API – עצור את שרת ה-API (`npm run dev:api`) ונסה שוב.
+
+### הרצה
+
+- **API** (פורט 3001):  
+  `npm run dev:api`
+- **Web** (פורט 3000, proxy ל-API ב-`/api`):  
+  `npm run dev:web`
+
+לבדיקה: להריץ את שני השרתים (בטרמינלים נפרדים), לפתוח [http://localhost:3000](http://localhost:3000). ה-Web משתמש ב-proxy ל-`/api` שמפנה ל-`http://localhost:3001`.
+
+### משתני סביבה
+
+- **API:** `DATABASE_URL` (אופציונלי; ברירת מחדל SQLite), `PORT` (ברירת מחדל 3001).
+- **Web:** `VITE_API_URL` (אופציונלי; ברירת מחדל `/api` – מתאים ל-proxy ב-dev).
+
+### בדיקות E2E (Playwright)
+
+הפרויקט משתמש ב-**Playwright** לבדיקות קצה-לקצה (הכי מומלץ ועכשווי).
+
+- **הרצת בדיקות:**  
+  `npm run test:e2e` (מהריצה מהשורש) או מתוך `apps/web`: `npm run test:e2e`
+- **ממשק גרפי:**  
+  `npm run test:e2e:ui` (מתוך `apps/web`)
+- **הרצה עם דפדפן גלוי:**  
+  `npm run test:e2e:headed`
+
+בפעם הראשונה: `cd apps/web && npx playwright install` (הורדת Chromium; אופציונלי גם Firefox ו-WebKit). הבדיקות מפעילות אוטומטית את שרת ה-Web.
+
+---
+
+## טכנולוגיות (Next.js – קיים)
 
 - **Next.js 16** (App Router) + TypeScript  
 - **whatsapp-web.js** + Puppeteer – חיבור ל-WhatsApp  

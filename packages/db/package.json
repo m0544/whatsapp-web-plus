@@ -1,0 +1,33 @@
+{
+  "name": "@whatsapp-web-plus/db",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "prisma generate && tsc",
+    "prepare": "prisma generate",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate deploy",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "@prisma/adapter-better-sqlite3": "^7.3.0",
+    "@prisma/client": "^7.3.0"
+  },
+  "devDependencies": {
+    "dotenv": "^17.2.4",
+    "prisma": "^7.3.0",
+    "typescript": "^5"
+  },
+  "prisma": {
+    "schema": "prisma/schema.prisma"
+  }
+}

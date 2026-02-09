@@ -2,6 +2,9 @@
 
 # dependencies
 /node_modules
+node_modules/
+**/dist/
+apps/api/.nest-build
 /.pnp
 .pnp.*
 .yarn/*
@@ -12,6 +15,12 @@
 
 # testing
 /coverage
+/playwright-report/
+/test-results/
+**/test-results/
+apps/web/playwright-report/
+/blob-report/
+/playwright/.cache/
 
 # next.js
 /.next/
@@ -19,6 +28,7 @@
 
 # production
 /build
+apps/api/.nest-build/
 
 # misc
 .DS_Store
