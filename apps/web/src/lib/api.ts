@@ -6,13 +6,24 @@ import type { QuickReply, WhatsAppStatusResponse } from '@whatsapp-web-plus/cont
 
 const baseUrl = import.meta.env.VITE_API_URL ?? '/api';
 
+function parseJsonOrThrow(text: string): void {
+  if (text.trim().startsWith('<')) {
+    throw new Error(
+      'השרת לא מגיב ב-JSON (קיבלנו HTML). וודא שה-API רץ: npm run dev:api בפורט 3001.',
+    );
+  }
+}
+
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(`${baseUrl}${path}`, { credentials: 'include' });
+  const text = await res.text();
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((err as { error?: string }).error ?? 'Request failed');
+    parseJsonOrThrow(text);
+    const err = JSON.parse(text) as { error?: string };
+    throw new Error(err.error ?? res.statusText);
   }
-  return res.json();
+  parseJsonOrThrow(text);
+  return JSON.parse(text) as T;
 }
 
 async function post<T>(path: string, body: unknown): Promise<T> {
@@ -22,11 +33,14 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     credentials: 'include',
     body: JSON.stringify(body),
   });
+  const text = await res.text();
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((err as { error?: string }).error ?? 'Request failed');
+    parseJsonOrThrow(text);
+    const err = JSON.parse(text) as { error?: string };
+    throw new Error(err.error ?? res.statusText);
   }
-  return res.json();
+  parseJsonOrThrow(text);
+  return JSON.parse(text) as T;
 }
 
 async function del(path: string): Promise<void> {
@@ -34,9 +48,11 @@ async function del(path: string): Promise<void> {
     method: 'DELETE',
     credentials: 'include',
   });
+  const text = await res.text();
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error((err as { error?: string }).error ?? 'Request failed');
+    parseJsonOrThrow(text);
+    const err = JSON.parse(text) as { error?: string };
+    throw new Error(err.error ?? res.statusText);
   }
 }
 

@@ -38,6 +38,22 @@ function displayName(contact: { name: string | null; remoteId: string }): string
   return contact.name?.trim() || formatPhone(contact.remoteId) || contact.remoteId;
 }
 
+/** אות משם פרטי + אות ממשפחה; אם אין שם – ספרה מהטלפון */
+function getInitials(contact: { name: string | null; remoteId: string }): string {
+  const name = contact.name?.trim();
+  if (!name) {
+    const digits = contact.remoteId.replace(/\D/g, '');
+    return digits.charAt(0) || '?';
+  }
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    const first = parts[0];
+    const last = parts[parts.length - 1];
+    return (first.charAt(0) + last.charAt(0)).toUpperCase();
+  }
+  return name.charAt(0).toUpperCase();
+}
+
 interface ContactRowProps {
   contact: {
     id: string;
@@ -60,11 +76,11 @@ function ContactRow({ contact, onSendNow, onSchedule }: ContactRowProps) {
         {contact.profilePicturePath ? (
           <ContactAvatar
             src={mediaUrl(contact.profilePicturePath)}
-            fallback={displayName(contact).charAt(0).toUpperCase()}
+            fallback={getInitials(contact)}
           />
         ) : (
-          <span className="text-muted-foreground text-lg font-medium">
-            {displayName(contact).charAt(0).toUpperCase()}
+          <span className="text-muted-foreground text-lg font-medium" aria-hidden>
+            {getInitials(contact)}
           </span>
         )}
       </div>
@@ -136,7 +152,9 @@ export function ContactSidebar({
 
   const syncMutation = useMutation({
     mutationFn: () => api.contacts.sync(),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['contacts'] }),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['contacts'] });
+    },
   });
 
   return (
@@ -144,9 +162,10 @@ export function ContactSidebar({
       className="w-72 flex flex-col border-l border-border bg-card/50 shrink-0"
       aria-label="רשימת אנשי קשר"
     >
-      <div className="p-3 border-b border-border flex items-center justify-between">
-        <h2 className="font-semibold text-foreground">אנשי קשר</h2>
-        <button
+      <div className="p-3 border-b border-border">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold text-foreground">אנשי קשר</h2>
+          <button
           type="button"
           onClick={() => syncMutation.mutate()}
           disabled={syncMutation.isPending}
@@ -158,6 +177,15 @@ export function ContactSidebar({
             className={`w-4 h-4 ${syncMutation.isPending ? 'animate-spin' : ''}`}
           />
         </button>
+        </div>
+        {syncMutation.data?.error && (
+          <p className="text-xs text-destructive mt-1">{syncMutation.data.error}</p>
+        )}
+        {syncMutation.isSuccess && syncMutation.data && !syncMutation.data.error && (
+          <p className="text-xs text-muted-foreground mt-1">
+            סונכרן {syncMutation.data.synced} אנשי קשר
+          </p>
+        )}
       </div>
       <div className="flex-1 overflow-y-auto p-2">
         {isLoading ? (

@@ -227,32 +227,41 @@ export class WhatsAppService {
       const client = await this.getClient();
       const chats = await client.getChats();
       let synced = 0;
+      let skippedGroups = 0;
       for (const chat of chats) {
-        if (chat.isGroup) continue;
+        if (chat.isGroup) {
+          skippedGroups++;
+          continue;
+        }
         const chatId = chat.id as { _serialized?: string } | string | undefined;
         const remoteId =
           (typeof chatId === 'object' && chatId?._serialized) || (typeof chatId === 'string' ? chatId : '');
         if (!remoteId) continue;
+        let name: string = (chat as { name?: string }).name ?? remoteId;
         try {
           const contact = await chat.getContact();
-          const name = contact?.name ?? contact?.pushname ?? chat.name ?? remoteId;
-          let profilePicturePath: string | null = null;
-          try {
-            const picUrl = await client.getProfilePicUrl(remoteId);
-            if (picUrl) {
-              const res = await fetch(picUrl);
-              const buf = Buffer.from(await res.arrayBuffer());
-              const ext = res.headers.get('content-type')?.includes('png') ? 'png' : 'jpg';
-              const safe = remoteId.replace(/[^a-zA-Z0-9.-]/g, '_');
-              const mediaDir = getMediaDir();
-              const filename = `contact_${safe}.${ext}`;
-              const filePath = path.join(mediaDir, filename);
-              fs.writeFileSync(filePath, buf);
-              profilePicturePath = filename;
-            }
-          } catch (_) {
-            // Profile pic may be private or unavailable
+          name = contact?.name ?? contact?.pushname ?? name;
+        } catch (_) {
+          // getContact() עלול להיכשל – משתמשים ב-chat.name
+        }
+        let profilePicturePath: string | null = null;
+        try {
+          const picUrl = await client.getProfilePicUrl(remoteId);
+          if (picUrl) {
+            const res = await fetch(picUrl);
+            const buf = Buffer.from(await res.arrayBuffer());
+            const ext = res.headers.get('content-type')?.includes('png') ? 'png' : 'jpg';
+            const safe = remoteId.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const mediaDir = getMediaDir();
+            const filename = `contact_${safe}.${ext}`;
+            const filePath = path.join(mediaDir, filename);
+            fs.writeFileSync(filePath, buf);
+            profilePicturePath = filename;
           }
+        } catch (_) {
+          // תמונת פרופיל אולי פרטית או לא זמינה
+        }
+        try {
           await prisma.contact.upsert({
             where: { remoteId },
             create: { remoteId, name, profilePicturePath, updatedAt: new Date() },
@@ -263,7 +272,7 @@ export class WhatsAppService {
           this.logger.warn(`Sync contact ${remoteId} failed`, (e as Error)?.message);
         }
       }
-      this.logger.log(`Contacts sync completed: ${synced} contacts`);
+      this.logger.log(`Contacts sync: ${synced} synced, ${skippedGroups} groups skipped`);
       return { synced };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'שגיאה בסנכרון';
