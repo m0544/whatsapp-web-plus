@@ -49,6 +49,9 @@ yarn-error.log*
 .wwebjs_auth
 .wwebjs_cache
 
+# Incoming media storage
+/media/
+
 # SQLite DB (each env has its own)
 *.db
 *.db-journal

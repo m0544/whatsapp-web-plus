@@ -14,3 +14,32 @@ model QuickReply {
   shortcut String // שם קצר לתבנית (למשל "בדרך")
   content  String // תוכן ההודעה
 }
+
+model Chat {
+  id        String    @id @default(cuid())
+  remoteId  String    @unique // מזהה צ'אט מ-WhatsApp (למשל 972501234567@c.us)
+  name      String?   // שם מגע או קבוצה
+  updatedAt DateTime  @updatedAt
+  messages  Message[]
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  chatId    String
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  remoteId  String   // מזהה הודעה מ-WhatsApp
+  body      String?  // תוכן טקסט
+  fromMe    Boolean
+  mediaType String?  // image, video, audio, document וכו'
+  mediaPath String?  // נתיב מקומי לשמירת המדיה
+  timestamp DateTime @default(now())
+}
+
+model ScheduledMessage {
+  id          String   @id @default(cuid())
+  content     String   // תוכן ההודעה
+  scheduledAt DateTime // זמן השליחה המיועד
+  chatId      String   // מזהה צ'אט בוואטסאפ (למשל 972501234567@c.us)
+  status      String   @default("Pending") // Pending | Sent | Failed
+  createdAt   DateTime @default(now())
+}

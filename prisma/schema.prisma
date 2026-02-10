@@ -14,3 +14,32 @@ model QuickReply {
   shortcut String // שם קצר לתבנית (למשל "בדרך")
   content  String // תוכן ההודעה
 }
+
+model Chat {
+  id        String    @id @default(cuid())
+  remoteId  String    @unique
+  name      String?
+  updatedAt DateTime  @updatedAt
+  messages  Message[]
+}
+
+model Message {
+  id        String   @id @default(cuid())
+  chatId    String
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  remoteId  String
+  body      String?
+  fromMe    Boolean
+  mediaType String?
+  mediaPath String?
+  timestamp DateTime @default(now())
+}
+
+model ScheduledMessage {
+  id          String   @id @default(cuid())
+  content     String
+  scheduledAt DateTime
+  chatId      String
+  status      String   @default("Pending")
+  createdAt   DateTime @default(now())
+}

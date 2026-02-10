@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import path from 'path';
+import fs from 'fs';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const QRCode = require('qrcode');
 import { prisma } from '@whatsapp-web-plus/db';
@@ -16,6 +17,13 @@ let clientPromise: Promise<ClientInstance> | null = null;
 
 function getAuthPath(): string {
   return path.join(__dirname, '..', '..', '.wwebjs_auth');
+}
+
+function getMediaDir(): string {
+  const root = path.resolve(__dirname, '..', '..', '..', '..');
+  const dir = path.join(root, 'media');
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  return dir;
 }
 
 async function createClient(logger: Logger) {
@@ -60,8 +68,88 @@ async function createClient(logger: Logger) {
   client.on('disconnected', (reason) => {
     setConnectionStatus('disconnected');
     logger.warn('WhatsApp disconnected', reason);
-    // Don't clear QR so user can still scan if the connection dropped briefly
   });
+
+  const saveMessage = async (msg: {
+    from: string;
+    to?: string;
+    id?: { _serialized?: string; id?: string };
+    body?: string;
+    fromMe?: boolean;
+    hasMedia?: boolean;
+    downloadMedia?: () => Promise<{ data: string; mimetype?: string } | null>;
+    getContact?: () => Promise<{ name?: string; pushname?: string }>;
+    getChat?: () => Promise<{ name?: string }>;
+  }) => {
+    try {
+      const chatId = msg.fromMe ? (msg.to || msg.from) : msg.from;
+      const remoteMsgId = msg.id?._serialized ?? msg.id?.id ?? `msg_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      const existing = await prisma.message.findFirst({
+        where: { remoteId: remoteMsgId },
+      });
+      if (existing) return;
+
+      let chat = await prisma.chat.findUnique({ where: { remoteId: chatId } });
+      if (!chat) {
+        let name: string | null = null;
+        try {
+          if (msg.getChat) {
+            const chatObj = await msg.getChat();
+            name = chatObj?.name ?? null;
+          }
+          if (!name && msg.getContact) {
+            const contact = await msg.getContact();
+            name = contact?.name ?? contact?.pushname ?? null;
+          }
+        } catch (_) {}
+        chat = await prisma.chat.create({
+          data: { remoteId: chatId, name: name ?? undefined },
+        });
+      } else {
+        await prisma.chat.update({
+          where: { id: chat.id },
+          data: { updatedAt: new Date() },
+        });
+      }
+
+      let mediaType: string | null = null;
+      let mediaPath: string | null = null;
+      if (msg.hasMedia && msg.downloadMedia) {
+        try {
+          const media = await msg.downloadMedia();
+          if (media?.data) {
+            const ext = media.mimetype?.split('/')[1] ?? 'bin';
+            const safe = remoteMsgId.replace(/[^a-zA-Z0-9.-]/g, '_');
+            const mediaDir = getMediaDir();
+            const filename = `${safe}.${ext}`;
+            const filePath = path.join(mediaDir, filename);
+            fs.writeFileSync(filePath, Buffer.from(media.data, 'base64'));
+            mediaType = media.mimetype ?? 'application/octet-stream';
+            mediaPath = filename;
+          }
+        } catch (e) {
+          logger.warn('Media download failed', (e as Error)?.message);
+        }
+      }
+
+      await prisma.message.create({
+        data: {
+          chatId: chat.id,
+          remoteId: remoteMsgId,
+          body: msg.body ?? null,
+          fromMe: msg.fromMe ?? false,
+          mediaType,
+          mediaPath,
+        },
+      });
+      logger.log(`Message saved: ${msg.fromMe ? 'outgoing' : 'incoming'} to ${chatId}`);
+    } catch (e) {
+      logger.warn('Save message failed', (e as Error)?.message);
+    }
+  };
+
+  client.on('message', saveMessage);
+  client.on('message_create', saveMessage);
 
   return client;
 }
@@ -122,10 +210,39 @@ export class WhatsAppService {
         ? normalized
         : `${normalized}@c.us`;
       await client.sendMessage(chatId, content);
+      await this.saveOutgoingMessage(chatId, content);
       return { success: true };
     } catch (err) {
       const message = err instanceof Error ? err.message : 'שגיאה בשליחה';
       return { success: false, error: message };
+    }
+  }
+
+  async saveOutgoingMessage(chatId: string, body: string): Promise<void> {
+    try {
+      let chat = await prisma.chat.findUnique({ where: { remoteId: chatId } });
+      if (!chat) {
+        chat = await prisma.chat.create({
+          data: { remoteId: chatId, name: chatId },
+        });
+      } else {
+        await prisma.chat.update({
+          where: { id: chat.id },
+          data: { updatedAt: new Date() },
+        });
+      }
+      const remoteMsgId = `out_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+      await prisma.message.create({
+        data: {
+          chatId: chat.id,
+          remoteId: remoteMsgId,
+          body,
+          fromMe: true,
+        },
+      });
+      this.logger.log(`Outgoing message saved to chat ${chatId}`);
+    } catch (e) {
+      this.logger.warn('saveOutgoingMessage failed', (e as Error)?.message);
     }
   }
 }
