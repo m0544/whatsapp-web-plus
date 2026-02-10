@@ -61,7 +61,20 @@ export function mediaUrl(filename: string): string {
   return `${baseUrl}/media/${encodeURIComponent(filename)}`;
 }
 
+export type ContactItem = {
+  id: string;
+  remoteId: string;
+  name: string | null;
+  profilePicturePath: string | null;
+  updatedAt: string;
+  _count: { scheduledMessages: number };
+};
+
 export const api = {
+  contacts: {
+    list: () => get<ContactItem[]>('/contacts'),
+    sync: () => post<{ synced: number; error?: string }>('/contacts/sync', {}),
+  },
   quickReplies: {
     list: () => get<QuickReply[]>('/quick-replies'),
     create: (body: { shortcut: string; content: string }) =>
@@ -89,7 +102,7 @@ export const api = {
   },
   scheduled: {
     list: () => get<ScheduledItem[]>('/scheduled'),
-    create: (body: { content: string; scheduledAt: string; chatId: string }) =>
+    create: (body: { content: string; scheduledAt: string; contactId: string }) =>
       post<ScheduledItem>('/scheduled', body),
     update: (id: string, body: { content?: string; scheduledAt?: string }) =>
       fetch(`${baseUrl}/scheduled/${id}`, {
@@ -109,7 +122,8 @@ export type ScheduledItem = {
   id: string;
   content: string;
   scheduledAt: string;
-  chatId: string;
+  contactId: string;
+  contact: { id: string; remoteId: string; name: string | null };
   status: string;
   createdAt: string;
 };

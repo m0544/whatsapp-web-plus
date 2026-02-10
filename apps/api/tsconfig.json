@@ -8,7 +8,7 @@
     "allowSyntheticDefaultImports": true,
     "target": "ES2022",
     "sourceMap": true,
-    "outDir": "./.nest-build",
+    "outDir": "./dist",
     "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
@@ -24,5 +24,5 @@
     }
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", ".nest-build"]
+  "exclude": ["node_modules", "dist"]
 }

@@ -148,7 +148,8 @@ async function createClient(logger: Logger) {
     }
   };
 
-  client.on('message', saveMessage);
+  // Only message_create — fires for both incoming and outgoing; using both
+  // message + message_create caused duplicate saves for the same message.
   client.on('message_create', saveMessage);
 
   return client;
@@ -215,6 +216,59 @@ export class WhatsAppService {
     } catch (err) {
       const message = err instanceof Error ? err.message : 'שגיאה בשליחה';
       return { success: false, error: message };
+    }
+  }
+
+  async syncContacts(): Promise<{ synced: number; error?: string }> {
+    if (getConnectionStatus() !== 'ready') {
+      return { synced: 0, error: 'WhatsApp לא מחובר' };
+    }
+    try {
+      const client = await this.getClient();
+      const chats = await client.getChats();
+      let synced = 0;
+      for (const chat of chats) {
+        if (chat.isGroup) continue;
+        const chatId = chat.id as { _serialized?: string } | string | undefined;
+        const remoteId =
+          (typeof chatId === 'object' && chatId?._serialized) || (typeof chatId === 'string' ? chatId : '');
+        if (!remoteId) continue;
+        try {
+          const contact = await chat.getContact();
+          const name = contact?.name ?? contact?.pushname ?? chat.name ?? remoteId;
+          let profilePicturePath: string | null = null;
+          try {
+            const picUrl = await client.getProfilePicUrl(remoteId);
+            if (picUrl) {
+              const res = await fetch(picUrl);
+              const buf = Buffer.from(await res.arrayBuffer());
+              const ext = res.headers.get('content-type')?.includes('png') ? 'png' : 'jpg';
+              const safe = remoteId.replace(/[^a-zA-Z0-9.-]/g, '_');
+              const mediaDir = getMediaDir();
+              const filename = `contact_${safe}.${ext}`;
+              const filePath = path.join(mediaDir, filename);
+              fs.writeFileSync(filePath, buf);
+              profilePicturePath = filename;
+            }
+          } catch (_) {
+            // Profile pic may be private or unavailable
+          }
+          await prisma.contact.upsert({
+            where: { remoteId },
+            create: { remoteId, name, profilePicturePath, updatedAt: new Date() },
+            update: { name, profilePicturePath, updatedAt: new Date() },
+          });
+          synced++;
+        } catch (e) {
+          this.logger.warn(`Sync contact ${remoteId} failed`, (e as Error)?.message);
+        }
+      }
+      this.logger.log(`Contacts sync completed: ${synced} contacts`);
+      return { synced };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'שגיאה בסנכרון';
+      this.logger.error('syncContacts failed', message);
+      return { synced: 0, error: message };
     }
   }
 

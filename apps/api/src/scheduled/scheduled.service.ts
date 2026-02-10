@@ -28,19 +28,20 @@ export class ScheduledService {
     const now = new Date();
     const pending = await prisma.scheduledMessage.findMany({
       where: { status: 'Pending', scheduledAt: { lte: now } },
+      include: { contact: true },
       orderBy: { scheduledAt: 'asc' },
     });
     for (const msg of pending) {
-      await this.dispatch(msg.id, msg.chatId, msg.content);
+      await this.dispatch(msg.id, msg.contact.remoteId, msg.content);
     }
   }
 
   async dispatch(
     scheduledId: string,
-    chatId: string,
+    remoteId: string,
     content: string,
   ): Promise<{ success: boolean; error?: string }> {
-    const phone = chatId.includes('@c.us') ? chatId.split('@')[0] : chatId.replace(/\D/g, '');
+    const phone = remoteId.includes('@c.us') ? remoteId.split('@')[0] : remoteId.replace(/\D/g, '');
     const result = this.whatsApp.sendMessage(phone, content);
     const resolved = await result;
     try {
@@ -49,7 +50,7 @@ export class ScheduledService {
           where: { id: scheduledId },
           data: { status: 'Sent' },
         });
-        this.logger.log(`Scheduled message ${scheduledId} sent to ${chatId}`);
+        this.logger.log(`Scheduled message ${scheduledId} sent to ${remoteId}`);
       } else {
         await prisma.scheduledMessage.update({
           where: { id: scheduledId },
@@ -65,21 +66,23 @@ export class ScheduledService {
 
   async list() {
     return prisma.scheduledMessage.findMany({
+      include: { contact: true },
       orderBy: [{ status: 'asc' }, { scheduledAt: 'asc' }],
     });
   }
 
-  async create(data: { content: string; scheduledAt: Date; chatId: string }) {
-    const chatId = data.chatId.trim().replace(/\D/g, '').endsWith('@c.us')
-      ? data.chatId.trim()
-      : `${data.chatId.trim().replace(/\D/g, '')}@c.us`;
+  async create(data: { content: string; scheduledAt: Date; contactId: string }) {
+    const contact = await prisma.contact.findUniqueOrThrow({
+      where: { id: data.contactId },
+    });
     return prisma.scheduledMessage.create({
       data: {
         content: data.content.trim(),
         scheduledAt: data.scheduledAt,
-        chatId,
+        contactId: contact.id,
         status: 'Pending',
       },
+      include: { contact: true },
     });
   }
 

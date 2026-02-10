@@ -15,6 +15,15 @@ model QuickReply {
   content  String // תוכן ההודעה
 }
 
+model Contact {
+  id                 String   @id @default(cuid())
+  remoteId           String   @unique // מזהה בוואטסאפ (972501234567@c.us)
+  name               String?
+  profilePicturePath String?  // נתיב מקומי לתמונת פרופיל
+  updatedAt          DateTime @updatedAt
+  scheduledMessages  ScheduledMessage[]
+}
+
 model Chat {
   id        String    @id @default(cuid())
   remoteId  String    @unique // מזהה צ'אט מ-WhatsApp (למשל 972501234567@c.us)
@@ -27,7 +36,7 @@ model Message {
   id        String   @id @default(cuid())
   chatId    String
   chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  remoteId  String   // מזהה הודעה מ-WhatsApp
+  remoteId  String   @unique // מזהה הודעה מ-WhatsApp (ייחודי למניעת כפילות)
   body      String?  // תוכן טקסט
   fromMe    Boolean
   mediaType String?  // image, video, audio, document וכו'
@@ -39,7 +48,8 @@ model ScheduledMessage {
   id          String   @id @default(cuid())
   content     String   // תוכן ההודעה
   scheduledAt DateTime // זמן השליחה המיועד
-  chatId      String   // מזהה צ'אט בוואטסאפ (למשל 972501234567@c.us)
+  contactId   String
+  contact     Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
   status      String   @default("Pending") // Pending | Sent | Failed
   createdAt   DateTime @default(now())
 }

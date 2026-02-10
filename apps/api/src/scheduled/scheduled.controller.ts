@@ -30,13 +30,13 @@ export class ScheduledController {
 
   @Post()
   async create(
-    @Body() body: { content?: string; scheduledAt?: string; chatId?: string },
+    @Body() body: { content?: string; scheduledAt?: string; contactId?: string },
   ) {
     const content = body.content?.trim();
-    const chatId = body.chatId?.trim();
-    if (!content || !chatId) {
+    const contactId = body.contactId?.trim();
+    if (!content || !contactId) {
       throw new HttpException(
-        { error: 'נדרשים תוכן, תאריך/שעה ומספר (chatId)' },
+        { error: 'נדרשים תוכן, תאריך/שעה ומגע (contactId)' },
         HttpStatus.BAD_REQUEST,
       );
     }
@@ -54,7 +54,7 @@ export class ScheduledController {
       );
     }
     try {
-      return await this.scheduled.create({ content, scheduledAt, chatId });
+      return await this.scheduled.create({ content, scheduledAt, contactId });
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       throw new HttpException(

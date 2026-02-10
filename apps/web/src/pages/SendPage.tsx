@@ -1,10 +1,16 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 
 export function SendPage() {
-  const [phone, setPhone] = useState('');
+  const [searchParams] = useSearchParams();
+  const phoneFromUrl = searchParams.get('phone') ?? '';
+  const [phone, setPhone] = useState(phoneFromUrl);
+
+  useEffect(() => {
+    if (phoneFromUrl) setPhone(phoneFromUrl);
+  }, [phoneFromUrl]);
   const [message, setMessage] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorText, setErrorText] = useState('');
 

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { CalendarClock, Trash2, Pencil } from 'lucide-react';
@@ -22,27 +23,47 @@ const statusLabel: Record<string, string> = {
   Failed: 'נכשל',
 };
 
+function formatPhone(remoteId: string): string {
+  const num = remoteId.replace(/@c\.us$/, '').replace(/\D/g, '');
+  return num ? `+${num}` : remoteId;
+}
+
 export function SchedulePage() {
+  const [searchParams] = useSearchParams();
+  const contactIdFromUrl = searchParams.get('contactId') ?? '';
+  const phoneFromUrl = searchParams.get('phone') ?? '';
+
   const queryClient = useQueryClient();
   const [content, setContent] = useState('');
-  const [chatId, setChatId] = useState('');
+  const [contactId, setContactId] = useState(contactIdFromUrl);
   const [scheduledAt, setScheduledAt] = useState('');
+
+  useEffect(() => {
+    if (contactIdFromUrl) setContactId(contactIdFromUrl);
+  }, [contactIdFromUrl]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const [editScheduledAt, setEditScheduledAt] = useState('');
 
-  const { data: items = [], isLoading } = useQuery({
+  const {
+    data: items = [],
+    isLoading,
+    isError: isScheduledError,
+    error: scheduledError,
+    refetch: refetchScheduled,
+  } = useQuery({
     queryKey: ['scheduled'],
     queryFn: () => api.scheduled.list(),
+    retry: false,
   });
 
   const createMutation = useMutation({
-    mutationFn: (body: { content: string; scheduledAt: string; chatId: string }) =>
+    mutationFn: (body: { content: string; scheduledAt: string; contactId: string }) =>
       api.scheduled.create(body),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['scheduled'] });
       setContent('');
-      setChatId('');
+      setContactId('');
       setScheduledAt('');
     },
   });
@@ -64,11 +85,11 @@ export function SchedulePage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const at = scheduledAt || undefined;
-    if (!content.trim() || !chatId.trim() || !at) return;
+    if (!content.trim() || !contactId.trim() || !at) return;
     const dt = new Date(at);
     if (dt <= new Date()) return;
     createMutation.mutate(
-      { content: content.trim(), scheduledAt: at, chatId: chatId.trim() },
+      { content: content.trim(), scheduledAt: at, contactId: contactId.trim() },
     );
   };
 
@@ -102,15 +123,20 @@ export function SchedulePage() {
         </h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">מספר נמען (עם קידומת)</label>
+            <label className="block text-sm font-medium mb-1">מזהה מגע (contactId)</label>
             <input
               dir="ltr"
               type="text"
-              placeholder="972501234567"
-              value={chatId}
-              onChange={(e) => setChatId(e.target.value)}
+              placeholder="מזהה או בחר מהצד"
+              value={contactId}
+              onChange={(e) => setContactId(e.target.value)}
               className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm"
             />
+            {phoneFromUrl && (
+              <p className="text-xs text-muted-foreground mt-1">
+                נבחר: {phoneFromUrl}
+              </p>
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium mb-1">תוכן ההודעה</label>
@@ -134,7 +160,7 @@ export function SchedulePage() {
           </div>
           <button
             type="submit"
-            disabled={!content.trim() || !chatId.trim() || !scheduledAt || createMutation.isPending}
+            disabled={!content.trim() || !contactId.trim() || !scheduledAt || createMutation.isPending}
             className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
           >
             {createMutation.isPending ? 'שומר...' : 'הוסף לתור'}
@@ -149,6 +175,17 @@ export function SchedulePage() {
         <h2 className="font-semibold mb-3">תור ההודעות</h2>
         {isLoading ? (
           <p className="text-muted-foreground text-sm">טוען...</p>
+        ) : isScheduledError ? (
+          <div className="rounded-xl border border-border bg-destructive/5 p-4 text-sm text-destructive flex flex-wrap items-center gap-2">
+            <span>{scheduledError instanceof Error ? scheduledError.message : 'שגיאה בטעינה'}</span>
+            <button
+              type="button"
+              onClick={() => refetchScheduled()}
+              className="underline"
+            >
+              נסה שוב
+            </button>
+          </div>
         ) : items.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border p-6 text-center text-muted-foreground text-sm">
             אין הודעות מתוזמנות. הוסף אחת למעלה.
@@ -169,7 +206,7 @@ export function SchedulePage() {
                 {items.map((item) => (
                   <tr key={item.id} className="border-b border-border last:border-0">
                     <td className="py-2 px-3" dir="ltr">
-                      {item.chatId}
+                      {item.contact?.name ?? formatPhone(item.contact?.remoteId ?? item.contactId)}
                     </td>
                     <td className="py-2 px-3 max-w-[200px] truncate" title={item.content}>
                       {editingId === item.id ? (
