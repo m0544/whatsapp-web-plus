@@ -152,7 +152,7 @@ export function ContactSidebar({
 
   const syncMutation = useMutation({
     mutationFn: () => api.contacts.sync(),
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['contacts'] });
     },
   });
